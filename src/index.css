@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #241c1a;
+  background: #f7f3ee;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+html { background: #f7f3ee; }
+body { margin: 0; min-width: 320px; background: #f7f3ee; }
+button, input, select { font: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
+.font-adero { font-family: "Adero Trial Family", Adero, Inter, ui-sans-serif, system-ui, sans-serif; }
+.brand-dark { background: linear-gradient(135deg, #4a090e 0%, #671016 52%, #35060a 100%); }
+.brand-logo-shell { background: rgba(22, 3, 6, .58); border: 1px solid rgba(255,255,255,.12); box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+.flyer-hero { isolation: isolate; }
+.session-pill { min-height: 96px; border-radius: 18px; border: 1px solid #eadfd8; background: #fffdfb; padding: 13px 14px; text-align: left; color: #2f2825; transition: .2s ease; }
+.session-pill:hover { border-color: #cda999; transform: translateY(-1px); box-shadow: 0 8px 22px rgba(64,39,28,.06); }
+.session-pill-active { border-color: #7c171d; background: linear-gradient(145deg, #7c171d, #4a090e); color: white; box-shadow: 0 10px 28px rgba(124,23,29,.18); }
+::selection { background: #e47724; color: #fff; }
