@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Activity, ArrowRight, CalendarDays, Check, CheckCircle2, ChevronRight, Clock3, Copy, History, RefreshCcw, Search, ShieldCheck, Sparkles, UserRound, UsersRound, X } from 'lucide-react'
 import CheckinCard from './components/CheckinCard'
 import Dashboard from './components/Dashboard'
-import { SESSIONS, checkIn, getDashboard, getHistory, lookupMembers } from './utils/api'
+import { SESSIONS, authenticateAdmin, checkIn, clearAdminAuth, getDashboard, getHistory, lookupMembers } from './utils/api'
 
 const LOGO = 'https://res.cloudinary.com/dnvgl9k4i/image/upload/v1790827899/The_Takeover_Generation_Logo_2_zcvm8n.png'
 const FLYER = '/wcc-2026-flyer-reference.jpg'
@@ -13,7 +13,80 @@ function formatNumber(value) {
   return number.toLocaleString('en-NG')
 }
 
+function AdminLogin({ onLogin }) {
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (event) => {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      await authenticateAdmin(password)
+      onLogin()
+    } catch (err) {
+      setError(err.message || 'Incorrect admin password.')
+      setPassword('')
+    }
+    setBusy(false)
+  }
+
+  return (
+    <main className="login-shell">
+      <div className="login-backdrop" />
+      <section className="login-card">
+        <div className="login-brand-panel">
+          <div className="brand-logo-shell login-logo-shell">
+            <img src={LOGO} alt="The Takeover Generation" />
+          </div>
+          <p className="login-kicker">World Changers Convention · 2026</p>
+          <h1 className="font-adero login-title">Admin<br /><span>Check-in</span></h1>
+          <p className="login-date">11TH–15TH NOVEMBER ’26</p>
+        </div>
+        <form onSubmit={submit} className="login-form">
+          <div>
+            <p className="eyebrow">Restricted access</p>
+            <h2>Welcome back</h2>
+            <p className="login-copy">Enter the admin password to access the WCC live check-in desk.</p>
+          </div>
+          <label className="login-label">
+            Admin password
+            <div className="login-input-wrap">
+              <ShieldCheck size={18} />
+              <input
+                autoFocus
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={event => setPassword(event.target.value)}
+                placeholder="Enter password"
+                autoComplete="current-password"
+              />
+              <button type="button" onClick={() => setShowPassword(value => !value)} className="login-show" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+          </label>
+          {error && <p className="login-error">{error}</p>}
+          <button disabled={busy || !password} className="login-submit" type="submit">
+            {busy ? 'Checking…' : 'Enter check-in desk'} <ArrowRight size={18} />
+          </button>
+          <p className="login-note"><ShieldCheck size={14} /> Admin access required before attendee information is displayed.</p>
+        </form>
+      </section>
+    </main>
+  )
+}
+
 export default function App() {
+  const [authenticated, setAuthenticated] = useState(() => Boolean(sessionStorage.getItem('wcc-admin-token')))
+
+  useEffect(() => {
+    const handleAdminLogout = () => setAuthenticated(false)
+    window.addEventListener('wcc-admin-logout', handleAdminLogout)
+    return () => window.removeEventListener('wcc-admin-logout', handleAdminLogout)
+  }, [])
   const [query, setQuery] = useState('')
   const [session, setSession] = useState(SESSIONS[0])
   const [members, setMembers] = useState([])
@@ -31,7 +104,8 @@ export default function App() {
 
   const hasQuery = query.trim().length > 0
   const searchResults = useMemo(() => members.slice(0, 8), [members])
-  const currentSessionCount = dashboard?.sessions?.[session] ?? 0
+  const currentSessionCount = dashboard?.sessions?.[session]
+  const dashboardCached = Boolean(dashboard?.cached)
   const alreadyInSession = history.some(item => item.session === session)
 
   useEffect(() => {
@@ -171,6 +245,17 @@ export default function App() {
     } catch {}
   }
 
+  if (!authenticated) {
+    return <AdminLogin onLogin={() => setAuthenticated(true)} />
+  }
+
+  const logout = () => {
+    clearAdminAuth()
+    setAuthenticated(false)
+    setQuery('')
+    setSelected(null)
+  }
+
   return (
     <div className="min-h-screen bg-[#f7f3ee] text-[#241c1a]">
       {/* Brand header: dark because the white logo needs contrast. */}
@@ -185,10 +270,13 @@ export default function App() {
               <p className="mt-1 text-xs font-medium text-white/60">11–15 November ’26 · Live check-in</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[.07] px-3.5 py-2 text-[10px] font-black uppercase tracking-[.14em] text-white/75">
-            <span className="h-2 w-2 rounded-full bg-[#55d38a] shadow-[0_0_0_4px_rgba(85,211,138,.12)]" />
-            <Activity size={14} className="text-[#f39a4a]" />
-            Live
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[.07] px-3.5 py-2 text-[10px] font-black uppercase tracking-[.14em] text-white/75">
+              <span className="h-2 w-2 rounded-full bg-[#55d38a] shadow-[0_0_0_4px_rgba(85,211,138,.12)]" />
+              <Activity size={14} className="text-[#f39a4a]" />
+              Live
+            </div>
+            <button onClick={logout} className="rounded-full border border-white/10 bg-white/[.07] px-3.5 py-2 text-[10px] font-black uppercase tracking-[.14em] text-white/65 transition hover:bg-white/10 hover:text-white">Lock desk</button>
           </div>
         </div>
       </header>
@@ -223,7 +311,7 @@ export default function App() {
         <section className="mt-6 rounded-[24px] border border-[#e7dcd4] bg-white p-3 shadow-[0_12px_40px_rgba(64,39,28,.05)] sm:p-4">
           <div className="flex items-center justify-between gap-4 px-2 pb-3 sm:px-3">
             <div><p className="text-[9px] font-black uppercase tracking-[.25em] text-[#a18d84]">Attendance sessions</p><p className="mt-1 text-sm font-black text-[#302724]">Select the session being checked in now</p></div>
-            <div className="hidden rounded-full bg-[#fff3e8] px-3 py-2 text-[10px] font-black text-[#9b4e27] sm:block">{formatNumber(currentSessionCount)} in selected session</div>
+            <div className="hidden rounded-full bg-[#fff3e8] px-3 py-2 text-[10px] font-black text-[#9b4e27] sm:block">{currentSessionCount == null ? '—' : formatNumber(currentSessionCount)} in selected session{dashboardCached ? ' · cached' : ''}</div>
           </div>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
             {SESSIONS.map((item, index) => {
@@ -231,7 +319,7 @@ export default function App() {
               return <button key={item} onClick={() => { setSession(item); setSuccess(null) }} className={`session-pill ${active ? 'session-pill-active' : ''}`}>
                 <span className="text-[9px] font-black uppercase tracking-[.16em] opacity-55">0{index + 1}</span>
                 <span className="mt-1 text-[11px] font-black leading-4">{item}</span>
-                <span className={`mt-2 text-lg font-black ${active ? 'text-white' : 'text-[#7c171d]'}`}>{dashboardLoading ? '—' : formatNumber(dashboard?.sessions?.[item] ?? 0)}</span>
+                <span className={`mt-2 text-lg font-black ${active ? 'text-white' : 'text-[#7c171d]'}`}>{dashboardLoading ? '—' : dashboard?.sessions?.[item] == null ? '—' : formatNumber(dashboard.sessions[item])}</span>
               </button>
             })}
           </div>
@@ -278,7 +366,7 @@ export default function App() {
               </div>
             </div>
             <div className="border-t border-white/10 bg-white/[.04] p-6 sm:p-7">
-              <div className="flex items-end justify-between gap-3"><div><p className="text-[9px] font-black uppercase tracking-[.2em] text-white/45">Live total</p><p className="mt-1 text-4xl font-black">{dashboardLoading ? '—' : formatNumber(dashboard?.totalCheckins ?? 0)}</p></div><UsersRound className="text-[#f39a4a]" size={25} /></div>
+              <div className="flex items-end justify-between gap-3"><div><p className="text-[9px] font-black uppercase tracking-[.2em] text-white/45">Live total</p><p className="mt-1 text-4xl font-black">{dashboardLoading ? '—' : dashboard?.totalCheckins == null ? '—' : formatNumber(dashboard.totalCheckins)}</p></div><UsersRound className="text-[#f39a4a]" size={25} /></div>
               <div className="mt-5 h-px bg-white/10" />
               <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-white/55"><span className="h-2 w-2 rounded-full bg-[#55d38a]" /> Live attendance data</div>
             </div>
